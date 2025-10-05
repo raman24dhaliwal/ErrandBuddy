@@ -1,0 +1,13 @@
+# Backend
+Flask
+Flask-SocketIO
+Flask-JWT-Extended
+SQLAlchemy
+PyMySQL
+
+# Frontend (Kivy)
+kivy
+
+# Testing
+pytest
+requests
