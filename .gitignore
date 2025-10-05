@@ -1,0 +1,19 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Environment
+.env
+
+# Editor/OS files
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Database (if using SQLite locally)
+*.sqlite3
+
+# Kivy compiled files
+*.pkl
