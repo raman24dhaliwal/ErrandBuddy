@@ -1,30 +1,39 @@
-from flask import Flask, request, jsonify
-from flask_cors import CORS
+from flask import Flask, jsonify
+from flask_jwt_extended import JWTManager
+from flask_socketio import SocketIO
 
-app = Flask(__name__)
-CORS(app)  # allow requests from Kivy frontend
+from config import Config
+from database import db
 
-# temporary demo "users database"
-users = {
-    "raman": "1234",
-    "laiba": "abcd"
-}
+def create_app():
+    app = Flask(__name__, instance_relative_config=False)
+    app.config.from_object(Config)
 
-@app.route("/", methods=["GET"])
-def home():
-    return jsonify({"message": "ErrandBuddy API is running!"})
+    # init extensions
+    db.init_app(app)
+    jwt = JWTManager(app)
+    socketio = SocketIO(app, cors_allowed_origins="*")
 
-@app.route("/login", methods=["POST"])
-def login():
-    data = request.get_json()
-    username = data.get("username")
-    password = data.get("password")
+    # register routes
+    with app.app_context():
+        # import blueprints
+        from routes import auth, tasks, chat, rides, users
+        app.register_blueprint(auth.bp)
+        app.register_blueprint(tasks.bp)
+        app.register_blueprint(chat.bp)
+        app.register_blueprint(rides.bp)
+        app.register_blueprint(users.bp)
 
-    # check if user exists and password matches
-    if username in users and users[username] == password:
-        return jsonify({"status": "success", "message": "Login successful!"})
-    else:
-        return jsonify({"status": "error", "message": "Invalid username or password"}), 401
+    # simple health route
+    @app.route("/")
+    def index():
+        return jsonify({"status": "ErrandBuddy Backend Running"})
+
+    return app, socketio
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app, socketio = create_app()
+    # create db if not exists
+    with app.app_context():
+        db.create_all()
+    socketio.run(app, debug=True)
