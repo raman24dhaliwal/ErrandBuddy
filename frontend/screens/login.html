@@ -1,81 +1,45 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ChatGPT with Flask</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            background-color: #f0f0f0;
-            margin: 0;
-            padding: 0;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-        }
-        .chat-container {
-            width: 400px;
-            background-color: white;
-            border-radius: 10px;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-            padding: 20px;
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
-        .messages {
-            flex-grow: 1;
-            overflow-y: auto;
-            max-height: 300px;
-            margin-bottom: 10px;
-        }
-        .messages div {
-            margin-bottom: 10px;
-        }
-        .messages .user {
-            text-align: right;
-            color: #007bff;
-        }
-        .messages .assistant {
-            text-align: left;
-            color: #28a745;
-        }
-        input[type="text"] {
-            width: calc(100% - 20px);
-            padding: 10px;
-            border: 1px solid #ccc;
-            border-radius: 5px;
-            margin-bottom: 10px;
-        }
-        button {
-            padding: 10px;
-            border: none;
-            background-color: #007bff;
-            color: white;
-            border-radius: 5px;
-            cursor: pointer;
-        }
-        button:hover {
-            background-color: #0056b3;
-        }
-    </style>
-</head>
-<body>
-    <div class="chat-container">
-        <div class="messages">
-            {% for msg in messages %}
-                <div class="{{ msg.role }}">{{ msg.content }}</div>
-            {% endfor %}
-        </div>
-        <form method="POST">
-            <input type="text" name="textbox" placeholder="Type your message..." value="{{ user_input }}" required>
-            <button type="submit">Send</button>
-        </form>
-        {% if bot_reply %}
-            <div class="assistant">{{ bot_reply }}</div>
-        {% endif %}
-    </div>
-</body>
-</html>
+from kivy.uix.screenmanager import Screen
+from kivy.uix.floatlayout import FloatLayout
+from kivy.uix.boxlayout import BoxLayout
+from kivy.uix.image import Image
+from kivy.uix.textinput import TextInput
+from kivy.uix.button import Button
+from services.api import api
+
+class LoginScreen(Screen):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        root = FloatLayout()
+        card = BoxLayout(orientation="vertical", spacing=12, size_hint=(None, None), size=(320, 480),
+                         pos_hint={"center_x": 0.5, "center_y": 0.5})
+        card.add_widget(Image(source="assets/logo.png", size_hint=(None, None), size=(160, 160)))
+        self.email = TextInput(hint_text="EMAIL ADDRESS", size_hint=(None, None), size=(280, 40), multiline=False,
+                               background_normal="", background_color=(1,1,1,1))
+        self.password = TextInput(hint_text="PASSWORD", password=True, size_hint=(None, None), size=(280, 40), multiline=False,
+                                  background_normal="", background_color=(1,1,1,1))
+        card.add_widget(self.email)
+        card.add_widget(self.password)
+        login_btn = Button(text="Log in", size_hint=(None, None), size=(220, 48), background_normal="", background_color=(0.07,0.1,0.5,1), color=(1,1,1,1))
+        login_btn.bind(on_press=self.login)
+        signup_btn = Button(text="👤 Sign Up", size_hint=(None, None), size=(220,48), background_normal="", background_color=(0.6,0.5,1,1), color=(1,1,1,1))
+        signup_btn.bind(on_press=self.go_register)
+        card.add_widget(login_btn)
+        card.add_widget(signup_btn)
+        root.add_widget(card)
+        self.add_widget(root)
+
+    def login(self, instance):
+        email = self.email.text.strip()
+        password = self.password.text.strip()
+        if not email or not password:
+            print("Please enter Email & Password.")
+            return
+        resp = api.login(email, password)
+        if resp.status_code == 200:
+            print("Login success")
+            self.manager.current = "tasks"
+        else:
+            print("Login failed:", resp.text)
+
+    def go_register(self, instance):
+        self.manager.current = "register"
