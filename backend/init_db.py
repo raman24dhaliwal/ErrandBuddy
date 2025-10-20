@@ -1,7 +1,8 @@
-# backend/init_db.py
-from backend import app, db
-from backend.database import db as _db  # if your structure uses backend.database
-# If your app creates db in app.py, just import and call create_all
+from app import create_app
+from database import db
+
+app, _ = create_app()
+
 with app.app_context():
     db.create_all()
-    print("Database created (errandbuddy.db)")
+    print("Database created.")
