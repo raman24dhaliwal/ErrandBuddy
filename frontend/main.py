@@ -12,6 +12,13 @@ from screens.profile import ProfileScreen
 # optional: simulate mobile window size in desktop
 Window.size = (360, 640)
 
+# optional: simulate design in iPhone 13/14 baseline
+# Window.size = (390, 844)
+
+# optional: simulate design in Samsung S23 baseline
+# Window.size = (384, 852)
+
+
 class ErrandBuddyApp(App):
     def build(self):
         sm = ScreenManager()
@@ -25,3 +32,4 @@ class ErrandBuddyApp(App):
 
 if __name__ == "__main__":
     ErrandBuddyApp().run()
+
