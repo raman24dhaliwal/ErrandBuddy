@@ -48,8 +48,19 @@ class RegisterScreen(Screen):
             return
         resp = api.register(email=email, password=password, username=username)
         if resp.status_code in (200, 201):
-            print("Registered:", resp.json())
-            self.manager.current = "login"
+            try:
+                data = resp.json()
+            except Exception:
+                data = {}
+            self._alert("Verification code sent. Check your email.")
+            # Navigate to verify screen and pass email
+            try:
+                v = self.manager.get_screen('verify')
+                if v:
+                    v.set_email(email)
+            except Exception:
+                pass
+            self.manager.current = "verify"
         else:
             try:
                 data = resp.json()

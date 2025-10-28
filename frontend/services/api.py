@@ -29,6 +29,14 @@ class ApiService:
             self.user = data.get("user")
         return resp
 
+    def verify_otp(self, email, code):
+        payload = {"email": email, "otp": str(code)}
+        return requests.post(f"{self.base}/auth/verify-otp", json=payload, headers=self._headers())
+
+    def resend_otp(self, email):
+        payload = {"email": email}
+        return requests.post(f"{self.base}/auth/resend-otp", json=payload, headers=self._headers())
+
     def logout(self):
         self.token = None
         self.user = None

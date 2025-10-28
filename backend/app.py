@@ -1,11 +1,19 @@
+import os
 from flask import Flask, jsonify
 from flask_jwt_extended import JWTManager
 from flask_socketio import SocketIO
+from dotenv import load_dotenv
 
 from config import Config
 from database import db
 
 def create_app():
+    # Load environment variables from backend/.env if present
+    try:
+        BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+        load_dotenv(os.path.join(BASE_DIR, '.env'))
+    except Exception:
+        pass
     app = Flask(__name__, instance_relative_config=False)
     app.config.from_object(Config)
 
