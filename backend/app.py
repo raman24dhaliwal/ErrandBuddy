@@ -24,6 +24,45 @@ def create_app():
 
     # register routes
     with app.app_context():
+        # lightweight schema migration: ensure acceptance column exists
+        try:
+            from sqlalchemy import inspect, text
+            engine = db.engine
+            insp = inspect(engine)
+            cols = [c['name'] for c in insp.get_columns('tasks')]
+            statements = []
+            if 'assignee_id' not in cols:
+                statements.append('ALTER TABLE tasks ADD COLUMN assignee_id INTEGER')
+            # ensure status column exists (older DBs)
+            if 'status' not in cols:
+                statements.append("ALTER TABLE tasks ADD COLUMN status VARCHAR(50) DEFAULT 'open'")
+            # messages table additions
+            try:
+                mcols = [c['name'] for c in insp.get_columns('messages')]
+            except Exception:
+                mcols = []
+            if 'task_id' not in mcols:
+                statements.append('ALTER TABLE messages ADD COLUMN task_id INTEGER')
+            # users table extra columns
+            try:
+                ucols = [c['name'] for c in insp.get_columns('users')]
+            except Exception:
+                ucols = []
+            if 'first_name' not in ucols:
+                statements.append("ALTER TABLE users ADD COLUMN first_name VARCHAR(80) DEFAULT ''")
+            if 'last_name' not in ucols:
+                statements.append("ALTER TABLE users ADD COLUMN last_name VARCHAR(80) DEFAULT ''")
+
+            if statements:
+                with engine.begin() as conn:
+                    for stmt in statements:
+                        try:
+                            conn.execute(text(stmt))
+                        except Exception as e:
+                            print('Migration statement failed:', stmt, e)
+        except Exception as e:
+            # If anything fails, continue; create_all below will work for new DBs
+            print('Schema check failed or skipped:', e)
         # import blueprints
         from routes import auth, tasks, chat, rides, users
         app.register_blueprint(auth.bp)

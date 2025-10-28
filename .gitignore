@@ -6,6 +6,10 @@ __pycache__/
 
 # Environment
 .env
+.venv/
+.venv*/
+venv/
+env/
 
 # Editor/OS files
 .vscode/
@@ -14,6 +18,17 @@ Thumbs.db
 
 # Database (if using SQLite locally)
 *.sqlite3
+backend/errandbuddy.db
 
 # Kivy compiled files
 *.pkl
+
+# Logs and runtime artifacts
+*.log
+frontend/kivy_*.log
+frontend/kivy_err.log
+frontend/kivy_out.log
+backend/server*.log
+
+# Bytecode caches
+**/__pycache__/

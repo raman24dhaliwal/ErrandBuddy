@@ -8,6 +8,8 @@ class Task(db.Model):
     description = db.Column(db.String(1000))
     status = db.Column(db.String(50), default="open")  # open, assigned, done
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+    # user who accepted to perform the task (nullable until accepted)
+    assignee_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     def to_dict(self):
@@ -17,5 +19,6 @@ class Task(db.Model):
             "description": self.description,
             "status": self.status,
             "user_id": self.user_id,
+            "assignee_id": self.assignee_id,
             "created_at": self.created_at.isoformat(),
         }

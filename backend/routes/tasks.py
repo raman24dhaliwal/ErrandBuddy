@@ -64,3 +64,39 @@ def delete_task(task_id):
     db.session.delete(t)
     db.session.commit()
     return jsonify({"msg": "Task deleted"})
+
+
+@bp.route("/<int:task_id>/accept", methods=["POST"])
+@jwt_required()
+def accept_task(task_id):
+    """Accept a task: mark as assigned to the current user.
+    Rules:
+    - Cannot accept your own task.
+    - Cannot accept if already assigned or done.
+    """
+    t = Task.query.get_or_404(task_id)
+    user_id = int(get_jwt_identity())
+    if t.user_id == user_id:
+        return jsonify({"msg": "You cannot accept your own task."}), 400
+    if t.status == "done":
+        return jsonify({"msg": "Task already completed."}), 400
+    if t.assignee_id and t.assignee_id != user_id:
+        return jsonify({"msg": "Task already assigned."}), 400
+
+    t.assignee_id = user_id
+    t.status = "assigned"
+    db.session.commit()
+    return jsonify({"msg": "Task accepted", "task": t.to_dict()}), 200
+
+
+@bp.route("/<int:task_id>/done", methods=["POST"])
+@jwt_required()
+def mark_task_done(task_id):
+    """Owner marks a task as done."""
+    t = Task.query.get_or_404(task_id)
+    user_id = int(get_jwt_identity())
+    if t.user_id != user_id:
+        return jsonify({"msg": "Only the owner can mark done."}), 403
+    t.status = "done"
+    db.session.commit()
+    return jsonify({"msg": "Task marked done", "task": t.to_dict()}), 200
