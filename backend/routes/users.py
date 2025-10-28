@@ -24,6 +24,8 @@ def update_profile():
     user = User.query.get_or_404(user_id)
     data = request.get_json() or {}
     user.username = data.get("username", user.username)
+    user.first_name = data.get("first_name", user.first_name)
+    user.last_name = data.get("last_name", user.last_name)
     user.bio = data.get("bio", user.bio)
     db.session.commit()
     return jsonify({"msg": "Profile updated", "user": user.to_dict()})

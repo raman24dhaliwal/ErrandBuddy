@@ -16,14 +16,28 @@ class RegisterScreen(Screen):
             self._bg = Rectangle(pos=self.pos, size=self.size)
         self.bind(pos=self._update_bg, size=self._update_bg)
         layout = BoxLayout(orientation="vertical", padding=20, spacing=10)
-        self.username = TextInput(hint_text="Username", multiline=False)
+        self.first_name = TextInput(hint_text="First Name", multiline=False)
+        self.last_name = TextInput(hint_text="Last Name", multiline=False)
         self.email = TextInput(hint_text="Email", multiline=False)
         self.password = TextInput(hint_text="Password", password=True, multiline=False)
+        # Tab traversal
+        try:
+            for ti in (self.first_name, self.last_name, self.email, self.password):
+                ti.write_tab = False
+            self.first_name.focus_next = self.last_name
+            self.last_name.focus_previous = self.first_name
+            self.last_name.focus_next = self.email
+            self.email.focus_previous = self.last_name
+            self.email.focus_next = self.password
+            self.password.focus_previous = self.email
+        except Exception:
+            pass
         register_btn = Button(text="Register", size_hint=(1, None), height=50)
         register_btn.bind(on_press=self.do_register)
         back_btn = Button(text="Back to Login", size_hint=(1, None), height=40)
         back_btn.bind(on_press=lambda *a: setattr(self.manager, "current", "login"))
-        layout.add_widget(self.username)
+        layout.add_widget(self.first_name)
+        layout.add_widget(self.last_name)
         layout.add_widget(self.email)
         layout.add_widget(self.password)
         layout.add_widget(register_btn)
@@ -36,7 +50,8 @@ class RegisterScreen(Screen):
             self._bg.size = self.size
 
     def do_register(self, instance):
-        username = self.username.text.strip()
+        first_name = self.first_name.text.strip()
+        last_name = self.last_name.text.strip()
         email = self.email.text.strip()
         password = self.password.text.strip()
         if not email or not password:
@@ -46,7 +61,7 @@ class RegisterScreen(Screen):
         if not email.lower().endswith("@student.kpu.ca"):
             self._alert("Please use your KPU student email (@student.kpu.ca).")
             return
-        resp = api.register(email=email, password=password, username=username)
+        resp = api.register(email=email, password=password, first_name=first_name, last_name=last_name)
         if resp.status_code in (200, 201):
             try:
                 data = resp.json()

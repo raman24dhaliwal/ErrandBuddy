@@ -14,11 +14,13 @@ class ProfileScreen(Screen):
             self._bg = Rectangle(pos=self.pos, size=self.size)
         self.bind(pos=self._update_bg, size=self._update_bg)
         self.layout = BoxLayout(orientation="vertical", padding=8)
-        self.username = TextInput(hint_text="Username", size_hint=(1, None), height=40)
+        self.first_name = TextInput(hint_text="First Name", size_hint=(1, None), height=40)
+        self.last_name = TextInput(hint_text="Last Name", size_hint=(1, None), height=40)
         self.bio = TextInput(hint_text="Bio", size_hint=(1, None), height=80)
         save = Button(text="Save", size_hint=(1, None), height=48)
         save.bind(on_press=self.save_profile)
-        self.layout.add_widget(self.username)
+        self.layout.add_widget(self.first_name)
+        self.layout.add_widget(self.last_name)
         self.layout.add_widget(self.bio)
         self.layout.add_widget(save)
         self.add_widget(self.layout)
@@ -30,7 +32,8 @@ class ProfileScreen(Screen):
 
     def on_enter(self, *args):
         if api.user:
-            self.username.text = api.user.get("username", "")
+            self.first_name.text = api.user.get("first_name", "")
+            self.last_name.text = api.user.get("last_name", "")
             self.bio.text = api.user.get("bio", "")
 
     def save_profile(self, instance):
@@ -38,7 +41,12 @@ class ProfileScreen(Screen):
         if not api.token:
             print("Login first")
             return
-        payload = {"username": self.username.text.strip(), "bio": self.bio.text.strip()}
+        payload = {
+            "first_name": self.first_name.text.strip(),
+            "last_name": self.last_name.text.strip(),
+            "username": (self.first_name.text.strip() + " " + self.last_name.text.strip()).strip(),
+            "bio": self.bio.text.strip(),
+        }
         resp = put(f"{api.base}/users/me", json=payload, headers=api._headers())
         if resp.status_code == 200:
             print("Profile updated")

@@ -93,25 +93,52 @@ class LoginScreen(Screen):
             size=(320, 560),
             pos_hint={"center_x": 0.5, "center_y": 0.5},
         )
-        # Logo
+        # Logo (centered)
         logo = Image(source="frontend/assets/logo.jpeg", size_hint=(None, None), size=(200, 120))
-        card.add_widget(logo)
-        # Title/tagline (optional to mimic figma text)
-        card.add_widget(Label(text="ERRANDBUDDY", font_size=18, color=(0.1,0.2,0.4,1), size_hint=(1,None), height=22))
+        logo_box = AnchorLayout(anchor_x='center', size_hint=(1, None), height=130)
+        logo_box.add_widget(logo)
+        card.add_widget(logo_box)
+        # Title/tagline (centered)
+        title = Label(text="ERRANDBUDDY", font_size=18, color=(0.1,0.2,0.4,1), size_hint=(1,None), height=22, halign='center', valign='middle')
+        title.bind(size=lambda inst, val: setattr(inst, 'text_size', inst.size))
+        card.add_widget(title)
         
         # Inputs with rounded borders
         self.email_box = RoundedInput(hint="EMAIL ADDRESS")
         self.password_box = RoundedInput(hint="PASSWORD", password=True)
-        card.add_widget(self.email_box)
-        card.add_widget(self.password_box)
+        # Tab focus order: email -> password -> login button
+        try:
+            self.email_box.input.write_tab = False
+            self.password_box.input.write_tab = False
+        except Exception:
+            pass
+        email_box_wrap = AnchorLayout(anchor_x='center', size_hint=(1, None), height=50)
+        email_box_wrap.add_widget(self.email_box)
+        pass_box_wrap = AnchorLayout(anchor_x='center', size_hint=(1, None), height=50)
+        pass_box_wrap.add_widget(self.password_box)
+        card.add_widget(email_box_wrap)
+        card.add_widget(pass_box_wrap)
 
         # Buttons styled to match figma
         login_btn = RoundedButton(text="Log in", size_hint=(None, None), size=(220, 48), bg=(0.18, 0.15, 0.6, 1))
         login_btn.bind(on_press=self.login)
         signup_btn = OutlinedButton(text="\U0001F464  SIGN UP", size_hint=(None, None), size=(220, 44))
         signup_btn.bind(on_press=self.go_register)
-        card.add_widget(login_btn)
-        card.add_widget(signup_btn)
+        login_wrap = AnchorLayout(anchor_x='center', size_hint=(1, None), height=52)
+        login_wrap.add_widget(login_btn)
+        signup_wrap = AnchorLayout(anchor_x='center', size_hint=(1, None), height=48)
+        signup_wrap.add_widget(signup_btn)
+        card.add_widget(login_wrap)
+        card.add_widget(signup_wrap)
+
+        # Ensure focus traversal works using FocusBehavior
+        try:
+            self.email_box.input.focus_next = self.password_box.input
+            self.password_box.input.focus_previous = self.email_box.input
+            # Pressing Enter in password triggers login
+            self.password_box.input.bind(on_text_validate=lambda *_: self.login(None))
+        except Exception:
+            pass
         root.add_widget(card)
         self.add_widget(root)
 
@@ -124,14 +151,27 @@ class LoginScreen(Screen):
         email = self.email_box.input.text.strip() if self.email_box else ""
         password = self.password_box.input.text.strip() if self.password_box else ""
         if not email or not password:
-            print("Please enter Email & Password.")
+            self._alert("Please enter Email & Password.")
             return
         resp = api.login(email, password)
         if resp.status_code == 200:
             print("Login success")
             self.manager.current = "tasks"
         else:
-            print("Login failed:", resp.text)
+            try:
+                data = resp.json(); msg = data.get("msg") or resp.text
+            except Exception:
+                msg = resp.text
+            self._alert(f"Login failed: {msg}")
 
     def go_register(self, instance):
         self.manager.current = "register"
+
+    def _alert(self, message: str):
+        content = BoxLayout(orientation="vertical", padding=12, spacing=10)
+        content.add_widget(Label(text=message, color=(0,0,0,1), size_hint=(1, None), halign='center', valign='middle'))
+        btn = Button(text="OK", size_hint=(1, None), height=40)
+        popup = Popup(title="Notice", content=content, size_hint=(None, None), size=(320, 200), auto_dismiss=False)
+        btn.bind(on_release=lambda *_: popup.dismiss())
+        content.add_widget(btn)
+        popup.open()

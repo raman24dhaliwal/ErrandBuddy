@@ -16,7 +16,9 @@ def register():
     data = request.get_json() or {}
     email = data.get("email")
     password = data.get("password")
-    username = data.get("username") or email.split("@")[0]
+    first_name = (data.get("first_name") or "").strip()
+    last_name = (data.get("last_name") or "").strip()
+    username = data.get("username") or (f"{first_name} {last_name}".strip() or email.split("@")[0])
 
     if not email or not password:
         return jsonify({"msg": "Missing email or password"}), 400
@@ -36,7 +38,7 @@ def register():
 
     # Create the user record (unverified until OTP check passes)
     hashed_pw = generate_password_hash(password)
-    user = User(username=username, email=email, password_hash=hashed_pw)
+    user = User(username=username, first_name=first_name, last_name=last_name, email=email, password_hash=hashed_pw)
     db.session.add(user)
     db.session.commit()
 

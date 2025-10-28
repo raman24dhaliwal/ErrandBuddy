@@ -15,9 +15,10 @@ class ApiService:
             headers["Authorization"] = f"Bearer {self.token}"
         return headers
 
-    def register(self, email, password, username=None):
-        username = username or email.split("@")[0]
-        payload = {"email": email, "password": password, "username": username}
+    def register(self, email, password, first_name="", last_name="", username=None):
+        username = username or (f"{first_name} {last_name}".strip() or email.split("@")[0])
+        payload = {"email": email, "password": password, "username": username,
+                   "first_name": first_name, "last_name": last_name}
         return requests.post(f"{self.base}/auth/register", json=payload, headers=self._headers())
 
     def login(self, email, password):
@@ -54,9 +55,26 @@ class ApiService:
     def delete_task(self, task_id):
         return requests.delete(f"{self.base}/tasks/{task_id}", headers=self._headers())
 
+    def accept_task(self, task_id):
+        return requests.post(f"{self.base}/tasks/{task_id}/accept", headers=self._headers())
+
+    def mark_task_done(self, task_id):
+        return requests.post(f"{self.base}/tasks/{task_id}/done", headers=self._headers())
+
     def send_message(self, receiver_id, content):
         payload = {"receiver_id": receiver_id, "content": content}
         return requests.post(f"{self.base}/chat/send", json=payload, headers=self._headers())
+
+    # Task-specific chat
+    def list_task_messages(self, task_id):
+        return requests.get(f"{self.base}/chat/task/{task_id}", headers=self._headers())
+
+    def send_task_message(self, task_id, content):
+        payload = {"content": content}
+        return requests.post(f"{self.base}/chat/task/{task_id}/send", json=payload, headers=self._headers())
+
+    def get_user(self, user_id):
+        return requests.get(f"{self.base}/users/{user_id}", headers=self._headers())
 
     def list_rides(self):
         return requests.get(f"{self.base}/rides", headers=self._headers())
