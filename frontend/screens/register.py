@@ -2,6 +2,8 @@ from kivy.uix.screenmanager import Screen
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.button import Button
 from kivy.uix.textinput import TextInput
+from kivy.uix.popup import Popup
+from kivy.uix.label import Label
 from services.api import api
 
 class RegisterScreen(Screen):
@@ -38,11 +40,40 @@ class RegisterScreen(Screen):
         email = self.email.text.strip()
         password = self.password.text.strip()
         if not email or not password:
-            print("Missing fields")
+            self._alert("Please enter email and password.")
+            return
+        # Enforce KPU student domain on the client side too
+        if not email.lower().endswith("@student.kpu.ca"):
+            self._alert("Please use your KPU student email (@student.kpu.ca).")
             return
         resp = api.register(email=email, password=password, username=username)
         if resp.status_code in (200, 201):
-            print("Registered:", resp.json())
-            self.manager.current = "login"
+            try:
+                data = resp.json()
+            except Exception:
+                data = {}
+            self._alert("Verification code sent. Check your email.")
+            # Navigate to verify screen and pass email
+            try:
+                v = self.manager.get_screen('verify')
+                if v:
+                    v.set_email(email)
+            except Exception:
+                pass
+            self.manager.current = "verify"
         else:
-            print("Register failed:", resp.text)
+            try:
+                data = resp.json()
+                msg = data.get("msg") or resp.text
+            except Exception:
+                msg = resp.text
+            self._alert(f"Registration failed: {msg}")
+
+    def _alert(self, message: str):
+        content = BoxLayout(orientation="vertical", padding=12, spacing=10)
+        content.add_widget(Label(text=message, color=(0,0,0,1), size_hint=(1, None), halign='center', valign='middle'))
+        btn = Button(text="OK", size_hint=(1, None), height=40)
+        popup = Popup(title="Notice", content=content, size_hint=(None, None), size=(320, 200), auto_dismiss=False)
+        btn.bind(on_release=lambda *_: popup.dismiss())
+        content.add_widget(btn)
+        popup.open()
