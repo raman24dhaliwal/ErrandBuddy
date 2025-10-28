@@ -7,6 +7,12 @@ from services.api import api
 class CommuteScreen(Screen):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+        # white background
+        from kivy.graphics import Color, Rectangle
+        with self.canvas.before:
+            Color(1, 1, 1, 1)
+            self._bg = Rectangle(pos=self.pos, size=self.size)
+        self.bind(pos=self._update_bg, size=self._update_bg)
         self.layout = BoxLayout(orientation="vertical", padding=8)
         self.origin = TextInput(hint_text="Origin", size_hint=(1, None), height=40)
         self.destination = TextInput(hint_text="Destination", size_hint=(1, None), height=40)
@@ -18,6 +24,11 @@ class CommuteScreen(Screen):
         self.layout.add_widget(self.time)
         self.layout.add_widget(btn)
         self.add_widget(self.layout)
+
+    def _update_bg(self, *args):
+        if hasattr(self, '_bg'):
+            self._bg.pos = self.pos
+            self._bg.size = self.size
 
     def create_ride(self, instance):
         o = self.origin.text.strip(); d = self.destination.text.strip(); t = self.time.text.strip()

@@ -11,6 +11,13 @@ def list_tasks():
     tasks = Task.query.order_by(Task.created_at.desc()).all()
     return jsonify([t.to_dict() for t in tasks])
 
+@bp.route("/mine", methods=["GET"])
+@jwt_required()
+def list_my_tasks():
+    user_id = int(get_jwt_identity())
+    tasks = Task.query.filter_by(user_id=user_id).order_by(Task.created_at.desc()).all()
+    return jsonify([t.to_dict() for t in tasks])
+
 @bp.route("", methods=["POST"])
 @jwt_required()
 def create_task():
@@ -19,7 +26,7 @@ def create_task():
     description = data.get("description", "")
     if not title:
         return jsonify({"msg": "Missing title"}), 400
-    user_id = get_jwt_identity()
+    user_id = int(get_jwt_identity())
     user = User.query.get(user_id)
     if not user:
         return jsonify({"msg": "User not found"}), 404
@@ -38,7 +45,7 @@ def get_task(task_id):
 def update_task(task_id):
     data = request.get_json() or {}
     t = Task.query.get_or_404(task_id)
-    user_id = get_jwt_identity()
+    user_id = int(get_jwt_identity())
     if t.user_id != user_id:
         return jsonify({"msg": "Unauthorized"}), 403
     t.title = data.get("title", t.title)
@@ -51,7 +58,7 @@ def update_task(task_id):
 @jwt_required()
 def delete_task(task_id):
     t = Task.query.get_or_404(task_id)
-    user_id = get_jwt_identity()
+    user_id = int(get_jwt_identity())
     if t.user_id != user_id:
         return jsonify({"msg": "Unauthorized"}), 403
     db.session.delete(t)

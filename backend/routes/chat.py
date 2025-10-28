@@ -9,7 +9,7 @@ bp = Blueprint("chat", __name__, url_prefix="/chat")
 @bp.route("/messages/<int:other_id>", methods=["GET"])
 @jwt_required()
 def get_conversation(other_id):
-    user_id = get_jwt_identity()
+    user_id = int(get_jwt_identity())
     msgs = Message.query.filter(
         ((Message.sender_id == user_id) & (Message.receiver_id == other_id)) |
         ((Message.sender_id == other_id) & (Message.receiver_id == user_id))
@@ -20,7 +20,7 @@ def get_conversation(other_id):
 @jwt_required()
 def send_message():
     data = request.get_json() or {}
-    user_id = get_jwt_identity()
+    user_id = int(get_jwt_identity())
     receiver_id = data.get("receiver_id")
     content = data.get("content")
     if not receiver_id or not content:
