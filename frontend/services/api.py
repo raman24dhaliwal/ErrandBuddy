@@ -29,12 +29,22 @@ class ApiService:
             self.user = data.get("user")
         return resp
 
+    def logout(self):
+        self.token = None
+        self.user = None
+
     def list_tasks(self):
         return requests.get(f"{self.base}/tasks", headers=self._headers())
+
+    def list_my_tasks(self):
+        return requests.get(f"{self.base}/tasks/mine", headers=self._headers())
 
     def create_task(self, title, description=""):
         payload = {"title": title, "description": description}
         return requests.post(f"{self.base}/tasks", json=payload, headers=self._headers())
+
+    def delete_task(self, task_id):
+        return requests.delete(f"{self.base}/tasks/{task_id}", headers=self._headers())
 
     def send_message(self, receiver_id, content):
         payload = {"receiver_id": receiver_id, "content": content}

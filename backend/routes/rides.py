@@ -20,7 +20,7 @@ def create_ride():
     time = data.get("time")
     if not origin or not destination or not time:
         return jsonify({"msg": "Missing data"}), 400
-    user_id = get_jwt_identity()
+    user_id = int(get_jwt_identity())
     ride = Ride(driver_id=user_id, origin=origin, destination=destination, time=time)
     db.session.add(ride)
     db.session.commit()

@@ -7,6 +7,12 @@ from services.api import api
 class RegisterScreen(Screen):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+        # white background
+        from kivy.graphics import Color, Rectangle
+        with self.canvas.before:
+            Color(1, 1, 1, 1)
+            self._bg = Rectangle(pos=self.pos, size=self.size)
+        self.bind(pos=self._update_bg, size=self._update_bg)
         layout = BoxLayout(orientation="vertical", padding=20, spacing=10)
         self.username = TextInput(hint_text="Username", multiline=False)
         self.email = TextInput(hint_text="Email", multiline=False)
@@ -21,6 +27,11 @@ class RegisterScreen(Screen):
         layout.add_widget(register_btn)
         layout.add_widget(back_btn)
         self.add_widget(layout)
+
+    def _update_bg(self, *args):
+        if hasattr(self, '_bg'):
+            self._bg.pos = self.pos
+            self._bg.size = self.size
 
     def do_register(self, instance):
         username = self.username.text.strip()

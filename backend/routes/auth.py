@@ -25,7 +25,8 @@ def register():
     user = User(username=username, email=email, password_hash=hashed_pw)
     db.session.add(user)
     db.session.commit()
-    token = create_access_token(identity=user.id, expires_delta=timedelta(days=7))
+    # JWT 'sub' (subject) must be a string; store user id as string
+    token = create_access_token(identity=str(user.id), expires_delta=timedelta(days=7))
     return jsonify({"msg": "User registered", "user": user.to_dict(), "token": token}), 201
 
 @bp.route("/login", methods=["POST"])
@@ -40,5 +41,6 @@ def login():
     if not user or not check_password_hash(user.password_hash, password):
         return jsonify({"msg": "Invalid credentials"}), 401
 
-    token = create_access_token(identity=user.id)
+    # JWT 'sub' (subject) must be a string; store user id as string
+    token = create_access_token(identity=str(user.id))
     return jsonify({"msg": "Login success", "user": user.to_dict(), "token": token}), 200

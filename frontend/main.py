@@ -11,6 +11,8 @@ from screens.profile import ProfileScreen
 
 # optional: simulate mobile window size in desktop
 Window.size = (360, 640)
+# Make the entire UI background white
+Window.clearcolor = (1, 1, 1, 1)
 
 # optional: simulate design in iPhone 13/14 baseline
 # Window.size = (390, 844)

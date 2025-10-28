@@ -7,6 +7,12 @@ from services.api import api
 class ChatScreen(Screen):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+        # white background
+        from kivy.graphics import Color, Rectangle
+        with self.canvas.before:
+            Color(1, 1, 1, 1)
+            self._bg = Rectangle(pos=self.pos, size=self.size)
+        self.bind(pos=self._update_bg, size=self._update_bg)
         self.layout = BoxLayout(orientation="vertical", padding=8)
         self.messages_box = BoxLayout(orientation="vertical", spacing=6, size_hint=(1, 0.8))
         self.input_box = BoxLayout(size_hint=(1, 0.2))
@@ -18,6 +24,11 @@ class ChatScreen(Screen):
         self.layout.add_widget(self.messages_box)
         self.layout.add_widget(self.input_box)
         self.add_widget(self.layout)
+
+    def _update_bg(self, *args):
+        if hasattr(self, '_bg'):
+            self._bg.pos = self.pos
+            self._bg.size = self.size
 
     def send_message(self, instance):
         # for demo, send to user id 1 (change as needed)
