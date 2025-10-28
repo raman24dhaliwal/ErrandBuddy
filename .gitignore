@@ -17,9 +17,3 @@ Thumbs.db
 
 # Kivy compiled files
 *.pkl
-
-# Virtual environments and local DB
-venv/
-.venv*/
-env/
-*.db

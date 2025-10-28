@@ -17,6 +17,15 @@ def register():
     if not email or not password:
         return jsonify({"msg": "Missing email or password"}), 400
 
+    # Enforce KPU student email domain
+    allowed_domain = "student.kpu.ca"
+    try:
+        domain = email.split("@", 1)[1].lower()
+    except Exception:
+        domain = ""
+    if domain != allowed_domain:
+        return jsonify({"msg": "Please use your KPU student email (@student.kpu.ca)."}), 400
+
     existing = User.query.filter_by(email=email).first()
     if existing:
         return jsonify({"msg": "Email already registered"}), 409
