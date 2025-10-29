@@ -53,6 +53,18 @@ def create_app():
             if 'last_name' not in ucols:
                 statements.append("ALTER TABLE users ADD COLUMN last_name VARCHAR(80) DEFAULT ''")
 
+            # study_sessions table additions
+            try:
+                scols = [c['name'] for c in insp.get_columns('study_sessions')]
+            except Exception:
+                scols = []
+            if 'campus' not in scols:
+                statements.append("ALTER TABLE study_sessions ADD COLUMN campus VARCHAR(30) DEFAULT 'Surrey'")
+            if 'teacher' not in scols:
+                statements.append("ALTER TABLE study_sessions ADD COLUMN teacher VARCHAR(120) DEFAULT ''")
+            if 'description' not in scols:
+                statements.append("ALTER TABLE study_sessions ADD COLUMN description TEXT DEFAULT ''")
+
             if statements:
                 with engine.begin() as conn:
                     for stmt in statements:
@@ -64,12 +76,13 @@ def create_app():
             # If anything fails, continue; create_all below will work for new DBs
             print('Schema check failed or skipped:', e)
         # import blueprints
-        from routes import auth, tasks, chat, rides, users
+        from routes import auth, tasks, chat, rides, users, study
         app.register_blueprint(auth.bp)
         app.register_blueprint(tasks.bp)
         app.register_blueprint(chat.bp)
         app.register_blueprint(rides.bp)
         app.register_blueprint(users.bp)
+        app.register_blueprint(study.bp)
 
         # register socket.io event handlers
         try:

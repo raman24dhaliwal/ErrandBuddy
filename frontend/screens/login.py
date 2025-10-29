@@ -5,6 +5,7 @@ from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.image import Image
 from kivy.uix.textinput import TextInput
 from kivy.uix.button import Button
+from kivy.uix.popup import Popup
 from kivy.uix.label import Label
 from kivy.graphics import Color, RoundedRectangle, Line
 from services.api import api
@@ -153,16 +154,38 @@ class LoginScreen(Screen):
         if not email or not password:
             self._alert("Please enter Email & Password.")
             return
-        resp = api.login(email, password)
-        if resp.status_code == 200:
+        try:
+            resp = api.login(email, password)
+        except Exception:
+            self._alert("Network error. Please try again.")
+            return
+        try:
+            status = resp.status_code
+        except Exception:
+            status = 0
+        if status == 200:
             print("Login success")
-            self.manager.current = "tasks"
-        else:
             try:
-                data = resp.json(); msg = data.get("msg") or resp.text
+                t = self.manager.get_screen('tasks')
+                if t:
+                    t.show_home()
             except Exception:
-                msg = resp.text
-            self._alert(f"Login failed: {msg}")
+                pass
+            self.manager.current = "tasks"
+            return
+        # Graceful messaging for common cases
+        if status == 401:
+            self._alert("Wrong email or password. Please try again.")
+            return
+        if status == 403:
+            self._alert("Email not verified. Please check your inbox for the OTP.")
+            return
+        # Fallback: show server message or generic
+        try:
+            data = resp.json(); msg = data.get("msg") or resp.text
+        except Exception:
+            msg = getattr(resp, 'text', 'Login failed')
+        self._alert(f"Login failed: {msg}")
 
     def go_register(self, instance):
         self.manager.current = "register"

@@ -34,18 +34,22 @@ class TaskScreen(Screen):
         self.reward_input = None
         self.deadline_input = None
         self.location_input = None
+        # track currently open edit popup
+        self._edit_popup = None
 
     def on_enter(self, *args):
-        self.show_home()
+        # Do not force a view on enter; navigation callbacks
+        # explicitly choose Home or Tasks list as needed.
+        pass
 
     def load_tasks(self):
         # Build list view with header + scroll
         self.root_layout.clear_widgets()
         header = BoxLayout(size_hint=(1, None), height=50, spacing=8)
-        header.add_widget(Label(text="Tasks", font_size=20, color=DARK_BLUE))
-        back_btn = LightRoundedButton(text="Back", size_hint=(None, None), size=(80, 36))
-        back_btn.bind(on_press=lambda *a: self.show_home())
-        header.add_widget(back_btn)
+        # Center: Title (properly centered)
+        title = Label(text="[b]Tasks[/b]", markup=True, font_size=20, color=DARK_BLUE, halign='center', valign='middle', size_hint=(1, 1))
+        title.bind(size=lambda inst, val: setattr(inst, 'text_size', inst.size))
+        header.add_widget(title)
         self.root_layout.add_widget(header)
 
         scroll = ScrollView(size_hint=(1, 1))
@@ -175,11 +179,11 @@ class TaskScreen(Screen):
             accept = LightRoundedButton(text="Accept Task")
             accept.bind(on_press=lambda *_: self.accept_task(task))
             btns.add_widget(accept)
-        # Mark done for owner
-        if is_owner and task.get('status') != 'done':
-            done = LightRoundedButton(text="Mark Done")
-            done.bind(on_press=lambda *_: self.mark_done(task))
-            btns.add_widget(done)
+        # Owner modifications consolidated under single Edit popup
+        if is_owner:
+            edit = LightRoundedButton(text="Edit")
+            edit.bind(on_press=lambda *_: self._open_task_edit_popup(task))
+            btns.add_widget(edit)
         # Chat button when a task has an assignee and current user is owner or assignee
         try:
             uid = (api.user or {}).get('id')
@@ -215,6 +219,47 @@ class TaskScreen(Screen):
             self.load_tasks()
         else:
             print("Delete failed:", getattr(resp, 'text', resp))
+
+    def _open_task_edit_popup(self, task: dict):
+        from kivy.uix.togglebutton import ToggleButton
+        box = BoxLayout(orientation='vertical', padding=12, spacing=10)
+        title = Label(text='Edit Task', color=(0,0,0,1), size_hint=(1, None), height=24)
+        box.add_widget(title)
+        # status toggles
+        sel_row = BoxLayout(orientation='horizontal', spacing=8, size_hint=(1, None), height=36)
+        cur = (task.get('status') or 'open').lower()
+        t_open = ToggleButton(text='Open', group='status', state='down' if cur in ('open','') else 'normal')
+        t_done = ToggleButton(text='Done', group='status', state='down' if cur == 'done' else 'normal')
+        sel_row.add_widget(t_open); sel_row.add_widget(t_done)
+        box.add_widget(sel_row)
+        # actions
+        actions = BoxLayout(orientation='horizontal', spacing=8, size_hint=(1, None), height=40)
+        save = LightRoundedButton(text='Save')
+        delete = LightRoundedButton(text='Delete')
+        cancel = LightRoundedButton(text='Cancel')
+        actions.add_widget(save); actions.add_widget(delete); actions.add_widget(cancel)
+        box.add_widget(actions)
+        popup = Popup(title='Edit Task', content=box, size_hint=(None, None), size=(320, 220), auto_dismiss=False)
+        self._edit_popup = popup
+
+        def do_save(*_):
+            if not api.token:
+                print('Login required')
+                return
+            new_status = 'done' if t_done.state == 'down' else 'open'
+            r = api.update_task(task.get('id'), status=new_status)
+            if getattr(r, 'status_code', 0) in (200, 201):
+                popup.dismiss(); self.load_tasks()
+            else:
+                print('Update failed', getattr(r, 'text', r))
+        def do_delete(*_):
+            self.delete_task(task); popup.dismiss()
+        def do_cancel(*_):
+            popup.dismiss()
+        save.bind(on_press=do_save)
+        delete.bind(on_press=do_delete)
+        cancel.bind(on_press=do_cancel)
+        popup.open()
 
     def _update_bg(self, *args):
         if hasattr(self, '_bg'):
@@ -275,8 +320,6 @@ class TaskScreen(Screen):
         self.location_input = RoundedInput(hint='Location (Optional)')
         submit = Button(text='SUBMIT', size_hint=(None, None), size=(220, 48), background_normal='', background_color=(0.0, 0.45, 1.0, 1), color=(1,1,1,1))
         submit.bind(on_press=self.create_task_from_form)
-        back = Button(text='Back', size_hint=(None, None), size=(120, 40))
-        back.bind(on_press=lambda *a: self.show_home())
         wrapper.add_widget(header)
         wrapper.add_widget(self.title_input)
         wrapper.add_widget(self.desc_input)
@@ -284,7 +327,6 @@ class TaskScreen(Screen):
         wrapper.add_widget(self.deadline_input)
         wrapper.add_widget(self.location_input)
         wrapper.add_widget(submit)
-        wrapper.add_widget(back)
         self.root_layout.add_widget(wrapper)
         # bottom navigation bar
         self._add_bottom_nav(active="Home")
@@ -308,12 +350,26 @@ class TaskScreen(Screen):
     def _add_bottom_nav(self, active: str = ""):
         nav = BottomNav(
             on_home=lambda: self.show_home(),
+            on_chat=lambda: self._go_screen('chats', 'left'),
             on_tasks=lambda: self.load_tasks(),
-            # For testing: tapping Profile signs out and returns to login
-            on_profile=lambda: self.sign_out(None),
+            on_study=lambda: self._go_screen('study', 'left'),
+            on_commute=lambda: self._go_screen('commute', 'left'),
+            on_profile=lambda: self._go_screen('profile', 'left'),
             active=active,
         )
         self.root_layout.add_widget(nav)
+
+    def _go_screen(self, name: str, direction: str = 'left'):
+        try:
+            from kivy.uix.screenmanager import SlideTransition
+            if self.manager:
+                self.manager.transition = SlideTransition(direction=direction, duration=0.18)
+                self.manager.current = name
+        except Exception:
+            try:
+                self.manager.current = name
+            except Exception:
+                pass
 
     def _task_icon_widget(self):
         """Return a centered image widget for the task placeholder icon.
@@ -359,16 +415,16 @@ class TaskScreen(Screen):
         # flexible spacer pushes the buttons to the far right
         from kivy.uix.widget import Widget
         row.add_widget(Widget(size_hint=(1, 1)))
-        # view/delete buttons
+        # view/edit buttons (owner gets Edit popup)
         right = BoxLayout(orientation='horizontal', size_hint=(None, 1), width=180, spacing=8)
         view_btn = LightRoundedButton(text='View', size_hint=(None, 1), width=80)
         view_btn.bind(on_press=lambda *_: self.view_task_inline(task))
         right.add_widget(view_btn)
-        can_delete = bool(api.user) and task.get('user_id') == (api.user or {}).get('id')
-        if can_delete:
-            del_btn = LightRoundedButton(text='Delete', size_hint=(None, 1), width=80)
-            del_btn.bind(on_press=lambda *_: self.delete_task(task))
-            right.add_widget(del_btn)
+        can_edit = bool(api.user) and task.get('user_id') == (api.user or {}).get('id')
+        if can_edit:
+            edit_btn = LightRoundedButton(text='Edit', size_hint=(None, 1), width=80)
+            edit_btn.bind(on_press=lambda *_: self._open_task_edit_popup(task))
+            right.add_widget(edit_btn)
         row.add_widget(right)
         self.content.add_widget(row)
 

@@ -52,6 +52,16 @@ class ApiService:
         payload = {"title": title, "description": description}
         return requests.post(f"{self.base}/tasks", json=payload, headers=self._headers())
 
+    def update_task(self, task_id, title=None, description=None, status=None):
+        payload = {}
+        if title is not None:
+            payload["title"] = title
+        if description is not None:
+            payload["description"] = description
+        if status is not None:
+            payload["status"] = status
+        return requests.put(f"{self.base}/tasks/{task_id}", json=payload, headers=self._headers())
+
     def delete_task(self, task_id):
         return requests.delete(f"{self.base}/tasks/{task_id}", headers=self._headers())
 
@@ -82,5 +92,49 @@ class ApiService:
     def create_ride(self, origin, destination, time):
         payload = {"origin": origin, "destination": destination, "time": time}
         return requests.post(f"{self.base}/rides", json=payload, headers=self._headers())
+
+    # Study sessions
+    def list_study_sessions(self, q=None, campus=None):
+        params = {}
+        if q:
+            params["q"] = q
+        if campus:
+            params["campus"] = campus
+        return requests.get(f"{self.base}/study", headers=self._headers(), params=params or None)
+
+    def create_study_session(self, course, available=True, campus="Surrey", teacher=None, description=None):
+        payload = {"course": course, "available": bool(available), "campus": campus}
+        if teacher is not None:
+            payload["teacher"] = teacher
+        if description is not None:
+            payload["description"] = description
+        return requests.post(f"{self.base}/study", json=payload, headers=self._headers())
+
+    def update_study_session(self, session_id, course=None, available=None, campus=None, teacher=None, description=None):
+        payload = {}
+        if course is not None:
+            payload["course"] = course
+        if available is not None:
+            payload["available"] = bool(available)
+        if campus is not None:
+            payload["campus"] = campus
+        if teacher is not None:
+            payload["teacher"] = teacher
+        if description is not None:
+            payload["description"] = description
+        return requests.put(f"{self.base}/study/{session_id}", json=payload, headers=self._headers())
+
+    def delete_study_session(self, session_id):
+        return requests.delete(f"{self.base}/study/{session_id}", headers=self._headers())
+
+    def connect_study_session(self, session_id):
+        return requests.post(f"{self.base}/study/{session_id}/connect", headers=self._headers())
+
+    # Direct chat
+    def list_conversation(self, other_user_id):
+        return requests.get(f"{self.base}/chat/messages/{other_user_id}", headers=self._headers())
+
+    def list_chat_overview(self):
+        return requests.get(f"{self.base}/chat/overview", headers=self._headers())
 
 api = ApiService()

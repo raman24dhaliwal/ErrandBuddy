@@ -15,7 +15,7 @@ class BottomNav(BoxLayout):
         nav = BottomNav(on_tasks=callback, active="Home")
     """
 
-    def __init__(self, on_home=None, on_tasks=None, on_study=None,
+    def __init__(self, on_home=None, on_chat=None, on_tasks=None, on_study=None,
                  on_commute=None, on_profile=None, active: str = "",
                  **kwargs):
         super().__init__(orientation="horizontal", size_hint=(1, None), height=60, spacing=6, padding=[8, 6, 8, 6], **kwargs)
@@ -50,9 +50,10 @@ class BottomNav(BoxLayout):
         # (logical name for active matching, callback, display text)
         names = [
             ("Home", on_home, "Home"),
+            ("Chat", on_chat, "Chat"),
             ("Tasks", on_tasks, "Tasks"),
             ("Study Buddy", on_study, "Study\nBuddy"),
-            ("Commute", on_commute, "Commute"),
+            ("Commute", on_commute, "Car\nPool"),
             ("Profile", on_profile, "Profile"),
         ]
 

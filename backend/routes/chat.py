@@ -36,6 +36,69 @@ def send_message():
     return jsonify({"msg": "Message sent", "message": msg.to_dict()}), 201
 
 
+@bp.route("/overview", methods=["GET"])
+@jwt_required()
+def conversations_overview():
+    """Return a list of active conversations for the current user, most recent first.
+    Each item may be a direct message (dm) or task chat.
+    """
+    user_id = int(get_jwt_identity())
+    msgs = (
+        Message.query
+        .filter((Message.sender_id == user_id) | (Message.receiver_id == user_id))
+        .order_by(Message.timestamp.desc())
+        .limit(500)
+        .all()
+    )
+    convs = {}
+    other_ids = set()
+    for m in msgs:
+        if m.task_id:
+            key = ("task", m.task_id)
+            other_id = m.receiver_id if m.sender_id == user_id else m.sender_id
+            if key not in convs:
+                convs[key] = {
+                    "type": "task",
+                    "task_id": m.task_id,
+                    "other_id": other_id,
+                    "last_message": m.to_dict(),
+                    "updated_at": m.timestamp.isoformat(),
+                }
+                if other_id:
+                    other_ids.add(other_id)
+        else:
+            other_id = m.receiver_id if m.sender_id == user_id else m.sender_id
+            key = ("dm", other_id)
+            if key not in convs:
+                convs[key] = {
+                    "type": "dm",
+                    "other_id": other_id,
+                    "task_id": None,
+                    "last_message": m.to_dict(),
+                    "updated_at": m.timestamp.isoformat(),
+                }
+                if other_id:
+                    other_ids.add(other_id)
+    users = {}
+    if other_ids:
+        rows = User.query.filter(User.id.in_(list(other_ids))).all()
+        for u in rows:
+            users[u.id] = u.to_dict()
+    items = []
+    for v in convs.values():
+        o = users.get(v.get("other_id")) if v.get("other_id") else None
+        if o:
+            v["other"] = {
+                "id": o.get("id"),
+                "username": o.get("username"),
+                "first_name": o.get("first_name"),
+                "last_name": o.get("last_name"),
+            }
+        items.append(v)
+    items.sort(key=lambda x: x.get("updated_at", ""), reverse=True)
+    return jsonify(items)
+
+
 @bp.route("/task/<int:task_id>", methods=["GET"])
 @jwt_required()
 def task_conversation(task_id):

@@ -9,6 +9,8 @@ from screens.chat import ChatScreen
 from screens.commute import CommuteScreen
 from screens.profile import ProfileScreen
 from screens.verify import VerifyEmailScreen
+from screens.study import StudyScreen
+from screens.chats_list import ChatsListScreen
 
 # optional: simulate mobile window size in desktop
 Window.size = (360, 640)
@@ -32,6 +34,8 @@ class ErrandBuddyApp(App):
         sm.add_widget(CommuteScreen(name="commute"))
         sm.add_widget(ProfileScreen(name="profile"))
         sm.add_widget(VerifyEmailScreen(name="verify"))
+        sm.add_widget(StudyScreen(name="study"))
+        sm.add_widget(ChatsListScreen(name="chats"))
         return sm
 
 if __name__ == "__main__":

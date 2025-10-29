@@ -5,6 +5,23 @@ from kivy.uix.button import Button
 from kivy.uix.label import Label
 from kivy.uix.widget import Widget
 from services.api import api
+try:
+    from local_store import (
+        get_cleared_at,
+        set_cleared_now,
+        get_last_read,
+        set_last_read_now,
+        get_title_override,
+    )
+except Exception:
+    from frontend.local_store import (
+        get_cleared_at,
+        set_cleared_now,
+        get_last_read,
+        set_last_read_now,
+        get_title_override,
+    )
+from datetime import datetime
 from kivy.clock import Clock
 from components.message_bubble import MessageBubble
 
@@ -18,6 +35,8 @@ class ChatScreen(Screen):
             self._bg = Rectangle(pos=self.pos, size=self.size)
         self.bind(pos=self._update_bg, size=self._update_bg)
         self.current_task_id = None
+        self.other_user_id = None
+        self._prev_screen = 'tasks'
         self._poll_ev = None
         self.layout = BoxLayout(orientation="vertical", padding=8, spacing=8)
         self.header = BoxLayout(size_hint=(1, None), height=46, spacing=8)
@@ -25,8 +44,12 @@ class ChatScreen(Screen):
         self.title = Label(text="Chat", color=(0.1,0.2,0.55,1), halign='left', valign='middle', size_hint=(1, 1))
         self.title.bind(size=lambda inst, val: setattr(inst, 'text_size', inst.size))
         self.header.add_widget(self.title)
-        # Back button at top-right
+        # Clear + Back buttons at top-right
         self.header.add_widget(Widget(size_hint=(1, 1)))
+        clear_btn = Button(text="Clear", size_hint=(None, None), size=(80, 36),
+                           background_normal='', background_color=(0.95,0.95,0.95,1), color=(0.10,0.20,0.55,1))
+        clear_btn.bind(on_press=lambda *_: self.clear_chat())
+        self.header.add_widget(clear_btn)
         back_btn = Button(text="Back", size_hint=(None, None), size=(80, 36),
                           background_normal='', background_color=(0.95,0.95,0.95,1), color=(0.10,0.20,0.55,1))
         back_btn.bind(on_press=lambda *_: self._go_back())
@@ -67,12 +90,20 @@ class ChatScreen(Screen):
 
     def _go_back(self):
         try:
-            self.manager.current = 'tasks'
+            from kivy.uix.screenmanager import SlideTransition
+            if self.manager:
+                self.manager.transition = SlideTransition(direction='right', duration=0.18)
+                self.manager.current = self._prev_screen or 'tasks'
         except Exception:
-            pass
+            try:
+                self.manager.current = self._prev_screen or 'tasks'
+            except Exception:
+                pass
 
     def open_for_task(self, task: dict):
         self.current_task_id = task.get('id')
+        self.other_user_id = None
+        self._prev_screen = 'tasks'
         # determine the other user's id from the task
         try:
             my_id = (api.user or {}).get('id')
@@ -92,14 +123,77 @@ class ChatScreen(Screen):
         except Exception:
             self.title.text = f"Task #{self.current_task_id}"
         self.refresh_messages()
+        # mark as read when opened
+        self._mark_read()
+
+    def open_with_user(self, user_id: int, display_name: str = None, prev_screen: str = 'study'):
+        self.other_user_id = int(user_id) if user_id is not None else None
+        self.current_task_id = None
+        self._prev_screen = prev_screen or 'tasks'
+        # Set header title
+        # Prefer provided display name; else fall back to user name
+        title_text = None
+        if display_name:
+            title_text = display_name
+        else:
+            try:
+                r = api.get_user(self.other_user_id)
+                if r.status_code == 200:
+                    u = r.json() or {}
+                    fn = (u.get('first_name') or '').strip()
+                    ln = (u.get('last_name') or '').strip()
+                    title_text = (fn + ' ' + ln).strip() or u.get('username')
+            except Exception:
+                pass
+        # If a Study Buddy title override exists like "Study Buddy Session (COURSE)",
+        # show just the course to keep the header short.
+        try:
+            key = f'user:{self.other_user_id}' if self.other_user_id else None
+            override = get_title_override(key) if key else None
+            if override:
+                if '(' in override and ')' in override:
+                    course = override.split('(', 1)[1].split(')', 1)[0].strip()
+                    if course:
+                        title_text = course
+                else:
+                    title_text = override
+        except Exception:
+            pass
+        self.title.text = title_text or 'Chat'
+        self.refresh_messages()
+        self._mark_read()
 
     def refresh_messages(self):
         self.messages_box.clear_widgets()
-        if not (api.token and self.current_task_id):
+        if not api.token:
             return
-        resp = api.list_task_messages(self.current_task_id)
+        if self.current_task_id:
+            resp = api.list_task_messages(self.current_task_id)
+        elif self.other_user_id:
+            resp = api.list_conversation(self.other_user_id)
+        else:
+            return
         if resp.status_code == 200:
             msgs = resp.json() or []
+            # Apply local clear threshold if set
+            key = self._conversation_key()
+            try:
+                cut = get_cleared_at(key)
+                if cut:
+                    try:
+                        cut_dt = datetime.fromisoformat(cut)
+                        def _after(m):
+                            ts = m.get('timestamp')
+                            try:
+                                mt = datetime.fromisoformat(ts)
+                                return mt > cut_dt
+                            except Exception:
+                                return True
+                        msgs = [m for m in msgs if _after(m)]
+                    except Exception:
+                        pass
+            except Exception:
+                pass
             my_id = (api.user or {}).get('id')
             for m in msgs:
                 mine = m.get('sender_id') == my_id
@@ -109,13 +203,18 @@ class ChatScreen(Screen):
             self.messages_box.add_widget(Label(text=f"Failed to load messages: {getattr(resp,'text',resp)}"))
 
     def send_message(self, instance):
-        if not (api.token and self.current_task_id):
+        if not api.token:
             print("Not ready")
             return
         content = self.text.text.strip()
         if not content:
             return
-        resp = api.send_task_message(self.current_task_id, content)
+        if self.current_task_id:
+            resp = api.send_task_message(self.current_task_id, content)
+        elif self.other_user_id:
+            resp = api.send_message(self.other_user_id, content)
+        else:
+            return
         if resp.status_code in (200, 201):
             try:
                 data = resp.json() or {}
@@ -128,6 +227,8 @@ class ChatScreen(Screen):
             self.text.text = ""
         else:
             print("Send failed", getattr(resp,'text',resp))
+        # update read marker after sending
+        self._mark_read()
 
     def _snap_scroll(self):
         """Anchor to top if content fits; bottom if overflowing."""
@@ -148,3 +249,25 @@ class ChatScreen(Screen):
             Clock.schedule_once(_do, 0)
         except Exception:
             pass
+
+    def _conversation_key(self):
+        if self.current_task_id:
+            return f"task:{self.current_task_id}"
+        if self.other_user_id:
+            return f"user:{self.other_user_id}"
+        return None
+
+    def clear_chat(self):
+        key = self._conversation_key()
+        if not key:
+            return
+        set_cleared_now(key)
+        self.refresh_messages()
+
+    def _mark_read(self):
+        key = self._conversation_key()
+        if key:
+            try:
+                set_last_read_now(key)
+            except Exception:
+                pass
