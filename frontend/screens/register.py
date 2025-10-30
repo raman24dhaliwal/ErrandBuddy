@@ -1,0 +1,94 @@
+from kivy.uix.screenmanager import Screen
+from kivy.uix.boxlayout import BoxLayout
+from kivy.uix.button import Button
+from kivy.uix.textinput import TextInput
+from kivy.uix.popup import Popup
+from kivy.uix.label import Label
+from services.api import api
+
+class RegisterScreen(Screen):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        # white background
+        from kivy.graphics import Color, Rectangle
+        with self.canvas.before:
+            Color(1, 1, 1, 1)
+            self._bg = Rectangle(pos=self.pos, size=self.size)
+        self.bind(pos=self._update_bg, size=self._update_bg)
+        layout = BoxLayout(orientation="vertical", padding=20, spacing=10)
+        self.first_name = TextInput(hint_text="First Name", multiline=False)
+        self.last_name = TextInput(hint_text="Last Name", multiline=False)
+        self.email = TextInput(hint_text="Email", multiline=False)
+        self.password = TextInput(hint_text="Password", password=True, multiline=False)
+        # Tab traversal
+        try:
+            for ti in (self.first_name, self.last_name, self.email, self.password):
+                ti.write_tab = False
+            self.first_name.focus_next = self.last_name
+            self.last_name.focus_previous = self.first_name
+            self.last_name.focus_next = self.email
+            self.email.focus_previous = self.last_name
+            self.email.focus_next = self.password
+            self.password.focus_previous = self.email
+        except Exception:
+            pass
+        register_btn = Button(text="Register", size_hint=(1, None), height=50)
+        register_btn.bind(on_press=self.do_register)
+        back_btn = Button(text="Back to Login", size_hint=(1, None), height=40)
+        back_btn.bind(on_press=lambda *a: setattr(self.manager, "current", "login"))
+        layout.add_widget(self.first_name)
+        layout.add_widget(self.last_name)
+        layout.add_widget(self.email)
+        layout.add_widget(self.password)
+        layout.add_widget(register_btn)
+        layout.add_widget(back_btn)
+        self.add_widget(layout)
+
+    def _update_bg(self, *args):
+        if hasattr(self, '_bg'):
+            self._bg.pos = self.pos
+            self._bg.size = self.size
+
+    def do_register(self, instance):
+        first_name = self.first_name.text.strip()
+        last_name = self.last_name.text.strip()
+        email = self.email.text.strip()
+        password = self.password.text.strip()
+        if not email or not password:
+            self._alert("Please enter email and password.")
+            return
+        # Enforce KPU student domain on the client side too
+        if not email.lower().endswith("@student.kpu.ca"):
+            self._alert("Please use your KPU student email (@student.kpu.ca).")
+            return
+        resp = api.register(email=email, password=password, first_name=first_name, last_name=last_name)
+        if resp.status_code in (200, 201):
+            try:
+                data = resp.json()
+            except Exception:
+                data = {}
+            self._alert("Verification code sent. Check your email.")
+            # Navigate to verify screen and pass email
+            try:
+                v = self.manager.get_screen('verify')
+                if v:
+                    v.set_email(email)
+            except Exception:
+                pass
+            self.manager.current = "verify"
+        else:
+            try:
+                data = resp.json()
+                msg = data.get("msg") or resp.text
+            except Exception:
+                msg = resp.text
+            self._alert(f"Registration failed: {msg}")
+
+    def _alert(self, message: str):
+        content = BoxLayout(orientation="vertical", padding=12, spacing=10)
+        content.add_widget(Label(text=message, color=(0,0,0,1), size_hint=(1, None), halign='center', valign='middle'))
+        btn = Button(text="OK", size_hint=(1, None), height=40)
+        popup = Popup(title="Notice", content=content, size_hint=(None, None), size=(320, 200), auto_dismiss=False)
+        btn.bind(on_release=lambda *_: popup.dismiss())
+        content.add_widget(btn)
+        popup.open()
